@@ -566,6 +566,34 @@
     box-shadow: 0 0 0 3px rgba(242,183,5,.35), 0 12px 28px rgba(242,183,5,.45);
   }
 
+  /* ================= BOOKMARK STRIP ================= */
+  .bookmark-strip{
+    padding: 2.4vh 6vw;
+    text-align:center;
+    background: var(--black);
+    border-bottom: 1px dashed #4a4238;
+  }
+  .bookmark-text{
+    color: var(--chrome);
+    font-size: .9rem;
+    line-height:1.6;
+    max-width: 520px;
+    margin: 0 auto;
+  }
+  .bookmark-text strong{
+    color: var(--yellow);
+  }
+  .bookmark-kbd{
+    display:inline-block;
+    font-family: var(--font-display);
+    font-size: .78rem;
+    color: var(--black);
+    background: var(--chrome);
+    padding: .1rem .45rem;
+    border-radius: 5px;
+    margin: 0 .12rem;
+  }
+
   /* ================= PLAYLIST GRID ================= */
   .playlist{
     padding: 6vh 6vw 8vh;
@@ -1078,6 +1106,16 @@
     Pasand aaya toh Rickshaw Radio pe feature karenge.
   </p>
   <a class="farmaish-btn" href="https://forms.gle/ykaJTpRjDRzFA8Jk6" target="_blank" rel="noopener">Apni Farmaish →</a>
+</section>
+
+<!-- ================= BOOKMARK CTA ================= -->
+<section class="bookmark-strip">
+  <p class="bookmark-text">
+    🔖 <strong>Isko bookmark kar lo, bhaisaab!</strong>
+    Naye gaane, nayi Farmaishein har hafte lagte hain —
+    <span class="bookmark-kbd">Ctrl</span>+<span class="bookmark-kbd">D</span>
+    (<span class="bookmark-kbd">⌘</span>+<span class="bookmark-kbd">D</span> on Mac) daba ke wapas aana mat bhoolna.
+  </p>
 </section>
 
 <footer>
@@ -1687,6 +1725,8 @@
     "मीटर के हिसाब से किराया लो<br>पर मोहब्बत का कोई रेट नहीं",
     "गाड़ी छोटी है, सपने बड़े<br>यही तो है असली अमीरी",
     "रस्ते में मिली मोहब्बत भी<br>एक अच्छी सवारी ही होती है",
+    "ना गर्लफ्रेंड का चक्कर,<br>ना बाबू-शोना का प्यार,<br>डीज़ल भरो टंकी में,<br>और निकल पड़ो हरिद्वार। 🚛😂",
+    "गाना अपनी पसंद का बजाऊँगा,<br>किराया मीटर से ही लगाऊँगा। 🛺📻😂",
   ];
   let sayriIndex = 0;
   const sayriEl = document.getElementById('sayriText');
