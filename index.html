@@ -1218,6 +1218,23 @@
     { title:"Channa Mereya", meta:"Ae Dil Hai Mushkil · 2016", mood:"Dard", freq:"104.8", ids:["3cjI4kwwytU","284Ov7ysmfA","dxcXdtZh_QA","jglVv0JfZUc","bzSTpdcs-EI"], spotify:"0H2iJVgorRR0ZFgRqGUjUM", language:"Hindi" },
     { title:"Kabira", meta:"Yeh Jawaani Hai Deewani · 2013", mood:"Dard", freq:"104.8", ids:["ueRbLSYLrZg","7jZwAl0ArQw","5amtPDV9ph4","JGenixA1BKA","jHNNMj5bNQw"], spotify:"4zGTqDGPwl9Gp9dpUAwMXd", language:"Hindi" },
 
+    // More Dard — barbershop nostalgia (90s Kumar Sanu-era Bollywood romance)
+    { title:"Chhupana Bhi Nahin Aata", meta:"Baazigar · 1993", mood:"Dard", freq:"104.8", ids:["fg9G1dacXjk"], language:"Hindi" },
+    { title:"Tumse Milne Ko Dil Karta Hai", meta:"Phool Aur Kaante · 1991", mood:"Dard", freq:"104.8", ids:["5y_TCKNzAMI"], language:"Hindi" },
+    { title:"Sab Kuchh Bhula Diya", meta:"Hum Tumhare Hain Sanam · 2002", mood:"Dard", freq:"104.8", ids:["xKx_80QM2LU"], language:"Hindi" },
+    { title:"Ek Ladki Ko Dekha", meta:"1942: A Love Story · 1994", mood:"Dard", freq:"104.8", ids:["htMvfOfixuM"], language:"Hindi" },
+    { title:"Kitna Haseen Chehra", meta:"Dilwale · 1994", mood:"Dard", freq:"104.8", ids:["qGOTe3KmCdY"], language:"Hindi" },
+    { title:"Chura Ke Dil Mera", meta:"Main Khiladi Tu Anari · 1994", mood:"Dard", freq:"104.8", ids:["6Na7GSV9bVY"], language:"Hindi" },
+    { title:"Dheere Dheere Pyar Ko Badhana Hai", meta:"Phool Aur Kaante · 1991", mood:"Dard", freq:"104.8", ids:["zuPoUsdXrqM"], language:"Hindi" },
+    { title:"Tum Dil Ki Dhadkan Mein", meta:"Dhadkan · 2000", mood:"Dard", freq:"104.8", ids:["nRJ8vHpi6_g"], language:"Hindi" },
+    { title:"Kaash Kahin Aisa Hota", meta:"Mohra · 1994", mood:"Dard", freq:"104.8", ids:["TRUuSFW80Rk"], language:"Hindi" },
+    { title:"Achha Sila Diya Toone", meta:"Bewafa Sanam · 1995", mood:"Dard", freq:"104.8", ids:["G7AdjVDBLO8"], language:"Hindi" },
+    { title:"Ab Tere Bin Jee Lenge Hum", meta:"Aashiqui · 1990", mood:"Dard", freq:"104.8", ids:["rXHY4Cv9cA8"], language:"Hindi" },
+    { title:"Pehli Pehli Baar Mohabbat Ki Hai", meta:"Sirf Tum · 1999", mood:"Dard", freq:"104.8", ids:["cBGDDBHN22U"], language:"Hindi" },
+    { title:"Bas Ek Sanam Chahiye", meta:"Aashiqui · 1990", mood:"Dard", freq:"104.8", ids:["fBylcT-TWZw"], language:"Hindi" },
+    { title:"Tere Dard Se Dil", meta:"Deewana · 1992", mood:"Dard", freq:"104.8", ids:["TgHYW8ubFko"], language:"Hindi" },
+    { title:"Kitna Pyaara Tujhe Rabne Banaya", meta:"Raja Hindustani · 1996", mood:"Dard", freq:"104.8", ids:["wV8njoRVefQ"], language:"Hindi" },
+
     // GJ plate — Gujarati / garba vibes
     { title:"Chogada", meta:"Loveyatri · 2018", mood:"Dhamaka", freq:"91.0", ids:["24Vk0_Iwv88","yr7JFNsz5dU","BzcKINXf-rs","asYxxtiWUyw","Ve1IeR66fnY","B3aaTde4_6w"], spotify:"1HBGWNyoRJhxvsfO8LLFDo", language:"Gujarati" },
     { title:"Nagada Sang Dhol", meta:"Ram-Leela · 2013", mood:"Dhamaka", freq:"91.0", ids:["bgD3gKFo54g","G0duAB7X0ns","3X7x4Ye-tqo","BmWkUAU1ktk","XOjoGRR4WGQ","vK5E_aeBGYA","cLIQzxgFeNE"], spotify:"5s9Kd33ExIhpe1JJSj5zLZ", language:"Gujarati" },
@@ -1533,6 +1550,88 @@
     input.addEventListener('keydown', (e) => {
       if(e.key === 'Enter'){ input.blur(); }
     });
+  })();
+
+  // ---- background driver commentary, spoken via ElevenLabs (server-proxied) ----
+  (function(){
+    const CACHE_PREFIX = 'rickshawradio_tts_v1_';
+    let started = false;
+    let timer = null;
+
+    function hashText(str){
+      let h = 0;
+      for(let i = 0; i < str.length; i++){ h = (h * 31 + str.charCodeAt(i)) | 0; }
+      return 'h' + (h >>> 0).toString(36);
+    }
+
+    function driverName(){
+      const input = document.getElementById('driverName');
+      const v = input && input.value.trim();
+      return v || 'Rickshaw';
+    }
+
+    function pickLine(){
+      const name = driverName();
+      const song = (typeof currentSong !== 'undefined' && currentSong) ? currentSong.title : null;
+      const lines = [
+        `${name} ki rickshaw me aapka swagat hai`,
+        song ? `Ab baj raha hai ${song}` : `Ek gaana chuno bhai, safar shuru karte hain`,
+        `Meter chalu hai, ${name} bhai dhyan se chala rahe hain`,
+        `Rickshaw Radio pe bane raho, agla gaana aa raha hai`,
+        `${name} ka rickshaw, sabse tez, sabse ganda gaana`,
+      ];
+      return lines[Math.floor(Math.random() * lines.length)];
+    }
+
+    async function fetchAudioDataUrl(text){
+      const key = CACHE_PREFIX + hashText(text);
+      try {
+        const cached = localStorage.getItem(key);
+        if(cached) return cached;
+      } catch(e){}
+
+      const res = await fetch('/api/speak', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      });
+      if(!res.ok) throw new Error('tts failed');
+      const blob = await res.blob();
+      const dataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+      try { localStorage.setItem(key, dataUrl); } catch(e){}
+      return dataUrl;
+    }
+
+    function scheduleNext(){
+      clearTimeout(timer);
+      timer = setTimeout(speakNext, 45000 + Math.random() * 15000);
+    }
+
+    async function speakNext(){
+      try {
+        const dataUrl = await fetchAudioDataUrl(pickLine());
+        const audio = new Audio(dataUrl);
+        audio.volume = 0.85;
+        audio.addEventListener('ended', scheduleNext);
+        audio.addEventListener('error', scheduleNext);
+        await audio.play();
+      } catch(e){
+        scheduleNext();
+      }
+    }
+
+    function startCommentary(){
+      if(started) return;
+      started = true;
+      speakNext();
+    }
+
+    document.addEventListener('click', startCommentary, { once: true });
   })();
 
   // ---- state number-plate picker: every Indian state/UT RTO code ----
