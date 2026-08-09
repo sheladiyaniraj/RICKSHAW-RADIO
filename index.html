@@ -1074,7 +1074,7 @@
     <div class="state-picker">
       <div class="state-plate-preview">
         <span class="flag-dot" aria-hidden="true"></span>
-        <span id="statePlatePreview">GJ 05 · AA 1234</span>
+        <span id="statePlatePreview">BR 01 · AA 1234</span>
       </div>
       <div class="state-picker-label">अपने राज्य का नंबर लगाओ</div>
       <select class="state-select" id="stateSelect" aria-label="Choose your state's plate code"></select>
@@ -1508,7 +1508,7 @@
     const opt = document.createElement('option');
     opt.value = s.code;
     opt.textContent = `${s.code} — ${s.name}`;
-    if(s.code === 'GJ') opt.selected = true;
+    if(s.code === 'BR') opt.selected = true;
     stateSelect.appendChild(opt);
   });
 
@@ -1552,7 +1552,7 @@
   applyStateFilter(false);
 
   // ---- auto-detect visitor's state via IP geolocation, no permission popup ----
-  // (uses ipapi.co's free tier; falls back silently to GJ default on any failure)
+  // (uses ipapi.co's free tier; falls back silently to BR default on any failure)
   const stateNameToCode = {};
   stateCodes.forEach(s => { stateNameToCode[s.name.toLowerCase()] = s.code; });
   // handle common alternate/short names returned by geolocation services
@@ -1578,7 +1578,7 @@
         applyStateFilter(false);
         stateNote.textContent = `📍 ${data.city ? data.city + ', ' : ''}${data.region} से जुड़े — ${stateNote.textContent}`;
       })
-      .catch(() => { /* silently keep default GJ selection */ });
+      .catch(() => { /* silently keep default BR selection */ });
   }
 
   document.getElementById('playerClose').addEventListener('click', closePlayer);
