@@ -1491,7 +1491,7 @@
 
   // fare meter count-up, then keeps ticking every 3s
   function animateMeter(){
-    const target = 450;
+    const target = Math.floor(Math.random() * (800 - 5 + 1)) + 5;
     let n = 0;
     const digits = [document.getElementById('d1'), document.getElementById('d2'), document.getElementById('d3'), document.getElementById('d4')];
     function render(){
