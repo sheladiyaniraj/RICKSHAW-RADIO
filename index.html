@@ -670,6 +670,22 @@
     margin-bottom:auto;
     padding-bottom: .9rem;
   }
+  .tape-reason{
+    font-family: var(--font-hindi);
+    font-size:.78rem;
+    font-style:italic;
+    color: var(--red);
+    margin: -.5rem 0 .7rem;
+  }
+
+  .loading-note{
+    grid-column: 1 / -1;
+    text-align:center;
+    font-family: var(--font-hindi);
+    color: var(--chrome);
+    padding: 3rem 1rem;
+    font-size:1rem;
+  }
 
   .tape-play{
     align-self:flex-start;
@@ -1312,6 +1328,23 @@
   let pendingQueue = null; // array of remaining candidate ids for current song
   let currentSong = null;
   let isMinimized = false; // true while playing in the background mini-bar
+  let songEnded = false; // did the current song finish, or get closed/skipped mid-way
+
+  // ---- lightweight local listening history, used to personalize "आपके लिए"
+  // picks. Lives entirely in localStorage — no login, no server-side profile. ----
+  const HISTORY_KEY = 'rickshawradio_history';
+  function logEvent(song, action){ // action: 'play' | 'completed' | 'skipped'
+    if(!song) return;
+    try {
+      const hist = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+      hist.push({ title: song.title, mood: song.mood, language: song.language, action, ts: Date.now() });
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(hist.slice(-30)));
+    } catch(e){}
+  }
+  function getHistory(){
+    try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); }
+    catch(e){ return []; }
+  }
 
   const ytScript = document.createElement('script');
   ytScript.src = 'https://www.youtube.com/iframe_api';
@@ -1336,9 +1369,17 @@
         videoId: id,
         playerVars: { autoplay: 1, rel: 0 },
         events: {
-          onError: tryNextCandidate
+          onError: tryNextCandidate,
+          onStateChange: onPlayerStateChange
         }
       });
+    }
+  }
+
+  function onPlayerStateChange(event){
+    if(event.data === YT.PlayerState.ENDED){
+      songEnded = true;
+      logEvent(currentSong, 'completed');
     }
   }
 
@@ -1368,7 +1409,12 @@
     const spotifyFrame = document.getElementById('spotifyFrame');
     const ytFrame = document.getElementById('playerFrame');
 
+    // switching songs without an explicit close still counts as a skip for the previous one
+    if(currentSong && currentSong !== song && !songEnded) logEvent(currentSong, 'skipped');
+
     currentSong = song;
+    songEnded = false;
+    logEvent(song, 'play');
     titleEl.textContent = song.title;
     metaEl.textContent = song.meta;
     document.getElementById('playerError').classList.remove('show');
@@ -1388,6 +1434,8 @@
   function closePlayer(){
     const overlay = document.getElementById('playerOverlay');
     const spotifyFrame = document.getElementById('spotifyFrame');
+    if(currentSong && !songEnded) logEvent(currentSong, 'skipped');
+    songEnded = false;
     overlay.classList.remove('open');
     document.body.style.overflow = '';
     pendingQueue = null;
@@ -1455,10 +1503,18 @@
     closePlayer();
   }
 
+  function escapeHtml(str){
+    const div = document.createElement('div');
+    div.textContent = str == null ? '' : String(str);
+    return div.innerHTML;
+  }
+
   function renderGrid(){
     grid.innerHTML = "";
     let list;
-    if(activeLanguage){
+    if(forYou){
+      list = forYouPicks || [];
+    } else if(activeLanguage){
       list = songs.filter(s => s.language === activeLanguage);
     } else {
       list = active === "All" ? songs : songs.filter(s => s.mood === active);
@@ -1475,6 +1531,7 @@
         <div class="tape-mood">${moodPlates[s.mood]} · ${s.mood}${s.language !== "Hindi" ? " · " + s.language.toUpperCase() : ""}</div>
         <div class="tape-title">${s.title}</div>
         <div class="tape-meta">${s.meta}</div>
+        ${s.aiReason ? `<div class="tape-reason">"${escapeHtml(s.aiReason)}"</div>` : ""}
         <button class="tape-play" type="button">
           <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
           SUN
@@ -1488,6 +1545,7 @@
 
   function selectMood(m){
     activeLanguage = null;
+    forYou = false;
     active = m;
     const found = songs.find(s => s.mood === m);
     readout.textContent = found ? `TUNED TO ${found.freq} FM — ${m.toUpperCase()}` : "TUNED TO ALL FREQUENCIES";
@@ -1499,11 +1557,72 @@
     dial.innerHTML = "";
     moods.forEach(m => {
       const btn = document.createElement('button');
-      btn.className = 'dial-btn' + (!activeLanguage && m === active ? ' active' : '');
+      btn.className = 'dial-btn' + (!activeLanguage && !forYou && m === active ? ' active' : '');
       btn.textContent = m;
       btn.addEventListener('click', () => selectMood(m));
       dial.appendChild(btn);
     });
+    const aiBtn = document.createElement('button');
+    aiBtn.className = 'dial-btn' + (forYou ? ' active' : '');
+    aiBtn.textContent = '✨ आपके लिए';
+    aiBtn.addEventListener('click', selectForYou);
+    dial.appendChild(aiBtn);
+  }
+
+  // ---- "आपके लिए" (For You): AI-personalized picks from local listening
+  // history, via /api/recommend. Needs a few plays before it's useful. ----
+  const FOR_YOU_CACHE_KEY = 'rickshawradio_foryou_cache';
+  let forYou = false;
+  let forYouPicks = null;
+
+  async function selectForYou(){
+    activeLanguage = null;
+    forYou = true;
+    renderDial();
+
+    const history = getHistory();
+    if(history.length < 3){
+      readout.textContent = "अभी थोड़ा और सुन लो, फिर तुम्हारी पसंद बताएंगे";
+      forYouPicks = songs.filter(s => s.mood === "Dhamaka");
+      renderGrid();
+      return;
+    }
+
+    let cache = null;
+    try { cache = JSON.parse(sessionStorage.getItem(FOR_YOU_CACHE_KEY) || 'null'); } catch(e){}
+    if(cache && history.length - cache.historyLen < 3){
+      forYouPicks = cache.picks;
+      readout.textContent = "TUNED TO YOUR FREQUENCY — आपके लिए";
+      renderGrid();
+      return;
+    }
+
+    grid.innerHTML = '<p class="loading-note">ड्राइवर सोच रहा है...</p>';
+    songCount.textContent = "…";
+    try {
+      const res = await fetch('/api/recommend', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ history, mood: active === "All" ? null : active }),
+      });
+      if(!res.ok) throw new Error('bad response');
+      const { picks } = await res.json();
+      const bySong = new Map(songs.map(s => [s.title, s]));
+      const list = picks.map(p => {
+        const song = bySong.get(p.title);
+        return song ? { ...song, aiReason: p.reason } : null;
+      }).filter(Boolean);
+
+      if(list.length === 0) throw new Error('no valid picks');
+
+      forYouPicks = list;
+      try { sessionStorage.setItem(FOR_YOU_CACHE_KEY, JSON.stringify({ picks: list, historyLen: history.length })); } catch(e){}
+      readout.textContent = "TUNED TO YOUR FREQUENCY — आपके लिए";
+    } catch(e){
+      forYouPicks = songs.filter(s => s.mood === "Dhamaka");
+      readout.textContent = "अभी सुझाव नहीं मिल पाए — ये सुन लो तब तक";
+    }
+    renderGrid();
   }
 
   // fare meter count-up, then keeps ticking every 5s
@@ -1701,6 +1820,7 @@
     const code = stateSelect.value;
     const lang = stateLanguageMap[code];
     active = "All";
+    forYou = false;
 
     if(lang){
       activeLanguage = lang;
