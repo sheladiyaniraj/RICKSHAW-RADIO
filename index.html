@@ -510,6 +510,43 @@
     letter-spacing:.1em;
   }
 
+  /* ================= FARMAISH / REQUEST CTA ================= */
+  .farmaish-section{
+    padding: 6vh 6vw 7vh;
+    text-align:center;
+    background: var(--black-soft);
+    border-top: 1px solid #35302a;
+    border-bottom: 1px solid #35302a;
+  }
+  .farmaish-heading{
+    font-family: var(--font-display);
+    color: var(--cream);
+    font-size: clamp(1.3rem, 3.6vw, 1.9rem);
+    margin-bottom: .9rem;
+  }
+  .farmaish-sub{
+    color: var(--chrome);
+    font-size: .95rem;
+    line-height:1.7;
+    max-width: 480px;
+    margin: 0 auto 1.8rem;
+  }
+  .farmaish-btn{
+    display:inline-block;
+    font-family: var(--font-display);
+    font-size: .95rem;
+    color: var(--black);
+    background: var(--yellow);
+    padding: .9rem 1.8rem;
+    border-radius: 999px;
+    box-shadow: 0 0 0 3px rgba(242,183,5,.25), 0 8px 22px rgba(242,183,5,.35);
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .farmaish-btn:hover{
+    transform: translateY(-2px);
+    box-shadow: 0 0 0 3px rgba(242,183,5,.35), 0 12px 28px rgba(242,183,5,.45);
+  }
+
   /* ================= PLAYLIST GRID ================= */
   .playlist{
     padding: 6vh 6vw 8vh;
@@ -1010,6 +1047,18 @@
 <!-- ================= PLAYLIST ================= -->
 <section class="playlist">
   <div class="grid" id="grid"></div>
+</section>
+
+<div class="mudguard" aria-hidden="true"></div>
+
+<!-- ================= REQUEST / FARMAISH ================= -->
+<section class="farmaish-section">
+  <h2 class="farmaish-heading">🛺 Apni Farmaish Bhejo</h2>
+  <p class="farmaish-sub">
+    Got a song that belongs on Rickshaw Radio?<br>
+    Ya apni likhi hui shayari / lyrics duniya ko sunani hai?
+  </p>
+  <a class="farmaish-btn" href="https://forms.gle/ykaJTpRjDRzFA8Jk6" target="_blank" rel="noopener">Apni Farmaish →</a>
 </section>
 
 <footer>
