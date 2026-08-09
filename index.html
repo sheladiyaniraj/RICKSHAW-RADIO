@@ -1489,7 +1489,7 @@
     });
   }
 
-  // fare meter count-up, then keeps ticking every 3s
+  // fare meter count-up, then keeps ticking every 5s
   function animateMeter(){
     const target = Math.floor(Math.random() * (800 - 5 + 1)) + 5;
     let n = 0;
@@ -1507,7 +1507,7 @@
         n = target;
         clearInterval(iv);
         render();
-        setInterval(() => { n += 1; render(); }, 3000);
+        setInterval(() => { n += 1; render(); }, 5000);
         return;
       }
       render();
