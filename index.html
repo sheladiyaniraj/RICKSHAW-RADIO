@@ -687,8 +687,11 @@
     font-size:1rem;
   }
 
+  .tape-actions{
+    display:flex; align-items:center; justify-content:space-between; gap:.5rem;
+  }
+
   .tape-play{
-    align-self:flex-start;
     font-family: var(--font-body);
     font-weight:700;
     font-size:.78rem;
@@ -701,6 +704,22 @@
   }
   .tape-play:hover{ background: var(--red); color:var(--cream); transform: translateY(-2px); }
   .tape-play svg{ width:12px; height:12px; }
+
+  .tape-feedback{
+    display:flex; gap:.3rem;
+  }
+  .tape-fb-btn{
+    width:28px; height:28px;
+    display:flex; align-items:center; justify-content:center;
+    border-radius:50%;
+    font-size:.85rem;
+    background: rgba(21,19,18,.08);
+    filter: grayscale(1);
+    opacity:.55;
+    transition: all .15s ease;
+  }
+  .tape-fb-btn:hover{ filter:grayscale(0); opacity:1; transform: translateY(-1px); }
+  .tape-fb-btn.active{ filter:grayscale(0); opacity:1; background: rgba(21,19,18,.15); }
 
   .hidden{ display:none !important; }
 
@@ -1346,6 +1365,36 @@
     catch(e){ return []; }
   }
 
+  // ---- explicit thumbs up/down — a much cleaner signal than an inferred
+  // skip, which can also just mean a broken embed ----
+  const FEEDBACK_KEY = 'rickshawradio_feedback';
+  function getFeedback(){
+    try { return JSON.parse(localStorage.getItem(FEEDBACK_KEY) || '{}'); }
+    catch(e){ return {}; }
+  }
+  function setFeedback(title, value){ // value: 'liked' | 'disliked' — clicking the same value again clears it
+    try {
+      const fb = getFeedback();
+      if(fb[title] === value) delete fb[title];
+      else fb[title] = value;
+      localStorage.setItem(FEEDBACK_KEY, JSON.stringify(fb));
+    } catch(e){}
+  }
+
+  // ---- titles recently surfaced by "आपके लिए", so the next batch doesn't
+  // just repeat the same "safe" picks ----
+  const RECENT_SHOWN_KEY = 'rickshawradio_recent_foryou';
+  function getRecentlyShown(){
+    try { return JSON.parse(localStorage.getItem(RECENT_SHOWN_KEY) || '[]'); }
+    catch(e){ return []; }
+  }
+  function recordShown(titles){
+    try {
+      const prev = getRecentlyShown();
+      localStorage.setItem(RECENT_SHOWN_KEY, JSON.stringify([...prev, ...titles].slice(-20)));
+    } catch(e){}
+  }
+
   const ytScript = document.createElement('script');
   ytScript.src = 'https://www.youtube.com/iframe_api';
   document.head.appendChild(ytScript);
@@ -1519,7 +1568,9 @@
     } else {
       list = active === "All" ? songs : songs.filter(s => s.mood === active);
     }
+    const feedback = getFeedback();
     list.forEach(s => {
+      const fb = feedback[s.title];
       const card = document.createElement('div');
       card.className = 'tape';
       card.innerHTML = `
@@ -1532,12 +1583,24 @@
         <div class="tape-title">${s.title}</div>
         <div class="tape-meta">${s.meta}</div>
         ${s.aiReason ? `<div class="tape-reason">"${escapeHtml(s.aiReason)}"</div>` : ""}
-        <button class="tape-play" type="button">
-          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-          SUN
-        </button>
+        <div class="tape-actions">
+          <button class="tape-play" type="button">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+            SUN
+          </button>
+          <div class="tape-feedback">
+            <button class="tape-fb-btn${fb === 'liked' ? ' active' : ''}" type="button" data-fb="liked" title="पसंद है">👍</button>
+            <button class="tape-fb-btn${fb === 'disliked' ? ' active' : ''}" type="button" data-fb="disliked" title="पसंद नहीं">👎</button>
+          </div>
+        </div>
       `;
       card.querySelector('.tape-play').addEventListener('click', () => openPlayer(s));
+      card.querySelectorAll('.tape-fb-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          setFeedback(s.title, btn.dataset.fb);
+          renderGrid();
+        });
+      });
       grid.appendChild(card);
     });
     songCount.textContent = list.length + " TRACKS";
@@ -1603,7 +1666,12 @@
       const res = await fetch('/api/recommend', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ history, mood: active === "All" ? null : active }),
+        body: JSON.stringify({
+          history,
+          mood: active === "All" ? null : active,
+          feedback: getFeedback(),
+          recentlyShown: getRecentlyShown(),
+        }),
       });
       if(!res.ok) throw new Error('bad response');
       const { picks } = await res.json();
@@ -1616,6 +1684,7 @@
       if(list.length === 0) throw new Error('no valid picks');
 
       forYouPicks = list;
+      recordShown(list.map(s => s.title));
       try { sessionStorage.setItem(FOR_YOU_CACHE_KEY, JSON.stringify({ picks: list, historyLen: history.length })); } catch(e){}
       readout.textContent = "TUNED TO YOUR FREQUENCY — आपके लिए";
     } catch(e){
