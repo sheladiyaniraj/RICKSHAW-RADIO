@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Rickshaw Radio — Live Feed (Admin)</title>
+<style>
+  :root{
+    --yellow:#F2B705; --black:#151312; --red:#E4572E;
+    --cream:#F7EFDD; --chrome:#B8B2A6;
+  }
+  *{ box-sizing:border-box; }
+  body{
+    margin:0; min-height:100vh;
+    background: var(--black); color: var(--cream);
+    font-family: system-ui, sans-serif;
+    padding: 2rem 1.2rem;
+  }
+  h1{ color: var(--yellow); font-size:1.3rem; margin-bottom:.2rem; }
+  .sub{ color: var(--chrome); font-size:.85rem; margin-bottom:1.5rem; }
+
+  #gate{ max-width:360px; margin: 4rem auto; text-align:center; }
+  #gate input{
+    width:100%; padding:.7rem .9rem; border-radius:8px; border:1px solid #423a2e;
+    background:#1c1915; color:var(--cream); font-size:1rem; margin-bottom:.7rem;
+  }
+  #gate button, .refresh-btn{
+    background: var(--yellow); color: var(--black); font-weight:700;
+    border-radius:999px; padding:.6rem 1.4rem; cursor:pointer;
+  }
+  #gateError{ color: var(--red); font-size:.85rem; margin-top:.6rem; min-height:1.2em; }
+
+  #dashboard{ display:none; max-width:720px; margin:0 auto; }
+  .toolbar{ display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem; }
+  .status{ font-size:.8rem; color: var(--chrome); }
+  .status.live{ color:#6fcf6f; }
+
+  .feed-item{
+    display:flex; justify-content:space-between; align-items:baseline;
+    background:#1c1915; border:1px solid #2b2620; border-radius:8px;
+    padding:.7rem 1rem; margin-bottom:.5rem;
+  }
+  .feed-item .title{ font-weight:700; }
+  .feed-item .meta{ color: var(--chrome); font-size:.8rem; }
+  .feed-item .ago{ color: var(--yellow); font-size:.78rem; white-space:nowrap; }
+  .empty{ color: var(--chrome); text-align:center; padding:3rem 1rem; }
+</style>
+</head>
+<body>
+
+  <div id="gate">
+    <h1>🛺 Admin — Live Feed</h1>
+    <div class="sub">यह पेज सिर्फ आपके लिए है</div>
+    <input type="password" id="tokenInput" placeholder="Admin token" autocomplete="off">
+    <button id="gateSubmit">Enter</button>
+    <div id="gateError"></div>
+  </div>
+
+  <div id="dashboard">
+    <h1>🛺 Live Feed — All Drivers</h1>
+    <div class="sub">Real songs, playing right now, across every visitor. No accounts, no IPs — just title/mood/language.</div>
+    <div class="toolbar">
+      <span class="status" id="status">connecting…</span>
+      <button class="refresh-btn" id="refreshBtn">Refresh now</button>
+    </div>
+    <div id="feed"></div>
+  </div>
+
+<script>
+  const TOKEN_KEY = 'rickshawradio_admin_token';
+  const gate = document.getElementById('gate');
+  const dashboard = document.getElementById('dashboard');
+  const gateError = document.getElementById('gateError');
+  const statusEl = document.getElementById('status');
+  const feedEl = document.getElementById('feed');
+  let pollTimer = null;
+
+  function escapeHtml(str){
+    const div = document.createElement('div');
+    div.textContent = str == null ? '' : String(str);
+    return div.innerHTML;
+  }
+
+  function timeAgo(ts){
+    const s = Math.max(0, Math.floor((Date.now() - ts) / 1000));
+    if(s < 5) return 'just now';
+    if(s < 60) return s + 's ago';
+    const m = Math.floor(s / 60);
+    if(m < 60) return m + 'm ago';
+    return Math.floor(m / 60) + 'h ago';
+  }
+
+  async function loadFeed(){
+    const token = sessionStorage.getItem(TOKEN_KEY);
+    if(!token) return;
+    try {
+      const res = await fetch('/api/live-feed', { headers: { 'x-admin-token': token } });
+      if(res.status === 401){
+        sessionStorage.removeItem(TOKEN_KEY);
+        stopPolling();
+        showGate('Token expired or invalid — try again.');
+        return;
+      }
+      if(!res.ok) throw new Error('bad response');
+      const { feed } = await res.json();
+      statusEl.textContent = '● live';
+      statusEl.classList.add('live');
+      renderFeed(feed);
+    } catch(e){
+      statusEl.textContent = 'connection issue — retrying…';
+      statusEl.classList.remove('live');
+    }
+  }
+
+  function renderFeed(feed){
+    if(!feed || feed.length === 0){
+      feedEl.innerHTML = '<div class="empty">कोई गाना अभी तक नहीं बजा — जैसे ही कोई ड्राइवर गाना चलाएगा, यहाँ दिखेगा।</div>';
+      return;
+    }
+    feedEl.innerHTML = feed.map(ev => `
+      <div class="feed-item">
+        <div>
+          <div class="title">${escapeHtml(ev.title)}</div>
+          <div class="meta">${escapeHtml(ev.mood)} · ${escapeHtml(ev.language)}</div>
+        </div>
+        <div class="ago">${escapeHtml(timeAgo(ev.ts))}</div>
+      </div>
+    `).join('');
+  }
+
+  function startPolling(){
+    loadFeed();
+    pollTimer = setInterval(loadFeed, 4000);
+  }
+  function stopPolling(){
+    if(pollTimer) clearInterval(pollTimer);
+    pollTimer = null;
+  }
+
+  function showGate(errorMsg){
+    gate.style.display = '';
+    dashboard.style.display = 'none';
+    gateError.textContent = errorMsg || '';
+    document.getElementById('tokenInput').focus();
+  }
+  function showDashboard(){
+    gate.style.display = 'none';
+    dashboard.style.display = 'block';
+    startPolling();
+  }
+
+  document.getElementById('gateSubmit').addEventListener('click', async () => {
+    const token = document.getElementById('tokenInput').value.trim();
+    if(!token) return;
+    gateError.textContent = 'checking…';
+    try {
+      const res = await fetch('/api/live-feed', { headers: { 'x-admin-token': token } });
+      if(res.status === 401){
+        gateError.textContent = 'गलत token — फिर कोशिश करो';
+        return;
+      }
+      if(!res.ok) throw new Error('bad response');
+      sessionStorage.setItem(TOKEN_KEY, token);
+      gateError.textContent = '';
+      showDashboard();
+    } catch(e){
+      gateError.textContent = 'कुछ गड़बड़ है, फिर कोशिश करो';
+    }
+  });
+  document.getElementById('tokenInput').addEventListener('keydown', e => {
+    if(e.key === 'Enter') document.getElementById('gateSubmit').click();
+  });
+  document.getElementById('refreshBtn').addEventListener('click', loadFeed);
+
+  if(sessionStorage.getItem(TOKEN_KEY)) showDashboard();
+  else showGate();
+</script>
+
+</body>
+</html>

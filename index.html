@@ -1365,6 +1365,19 @@
     catch(e){ return []; }
   }
 
+  // ---- fire-and-forget "now playing" ping for the admin live feed.
+  // No user identifier, no IP captured client-side — just which song. ----
+  function trackPlay(song){
+    try {
+      fetch('/api/track-play', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: song.title }),
+        keepalive: true,
+      }).catch(() => {});
+    } catch(e){}
+  }
+
   // ---- explicit thumbs up/down — a much cleaner signal than an inferred
   // skip, which can also just mean a broken embed ----
   const FEEDBACK_KEY = 'rickshawradio_feedback';
@@ -1464,6 +1477,7 @@
     currentSong = song;
     songEnded = false;
     logEvent(song, 'play');
+    trackPlay(song);
     titleEl.textContent = song.title;
     metaEl.textContent = song.meta;
     document.getElementById('playerError').classList.remove('show');
