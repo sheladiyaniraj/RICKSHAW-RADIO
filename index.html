@@ -1489,19 +1489,28 @@
     });
   }
 
-  // fare meter count-up
+  // fare meter count-up, then keeps ticking every 3s
   function animateMeter(){
-    const target = songs.length * 10 + 20;
+    const target = 450;
     let n = 0;
     const digits = [document.getElementById('d1'), document.getElementById('d2'), document.getElementById('d3'), document.getElementById('d4')];
-    const iv = setInterval(() => {
-      n += Math.max(1, Math.floor((target - n) / 6));
-      if(n >= target){ n = target; clearInterval(iv); }
+    function render(){
       const str = String(n).padStart(3,'0');
       digits[0].textContent = str[0] || '0';
       digits[1].textContent = str[1] || '0';
       digits[2].textContent = str[2] || '0';
       digits[3].textContent = (n % 10);
+    }
+    const iv = setInterval(() => {
+      n += Math.max(1, Math.floor((target - n) / 6));
+      if(n >= target){
+        n = target;
+        clearInterval(iv);
+        render();
+        setInterval(() => { n += 1; render(); }, 3000);
+        return;
+      }
+      render();
     }, 60);
   }
 
